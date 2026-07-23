@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Shield, ShieldCheck, User, QrCode, CreditCard, Building, Car, GraduationCap, Briefcase, HeartPulse, Globe, CheckCircle2, X } from 'lucide-react';
+import { Shield, ShieldCheck, User, QrCode, CreditCard, Building, Car, GraduationCap, Briefcase, HeartPulse, Globe, CheckCircle2, X, Download, Image as ImageIcon, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { useRef } from 'react';
 
 // Credential Types Map
 const credentialStyles: Record<string, any> = {
@@ -23,6 +26,47 @@ export default function WalletPage() {
   const [credentials, setCredentials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const downloadPNG = async () => {
+    if (!cardRef.current || !selectedCredential) return;
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, { scale: 3, backgroundColor: '#000000', useCORS: true });
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `${selectedCredential.credentialNumber}-Surya.png`;
+      link.href = url;
+      link.click();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate image.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const downloadPDF = async () => {
+    if (!cardRef.current || !selectedCredential) return;
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, { scale: 3, backgroundColor: '#000000', useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`${selectedCredential.credentialNumber}-Surya.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate PDF.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCredentials = async () => {
@@ -151,7 +195,7 @@ export default function WalletPage() {
                     <div className="w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
                       
                       {/* FRONT OF CARD */}
-                      <div className={`absolute inset-0 rounded-3xl p-6 shadow-2xl bg-gradient-to-br ${credentialStyles[selectedCredential.type]?.gradient || credentialStyles.SOID.gradient} border border-white/20 [backface-visibility:hidden]`}>
+                      <div ref={cardRef} className={`absolute inset-0 rounded-3xl p-6 shadow-2xl bg-gradient-to-br ${credentialStyles[selectedCredential.type]?.gradient || credentialStyles.SOID.gradient} border border-white/20 [backface-visibility:hidden]`}>
                         <div className="flex justify-between items-start mb-10">
                           <div className="flex items-center gap-2">
                             <div className="bg-white/20 p-2 rounded-lg backdrop-blur-md">
@@ -169,7 +213,7 @@ export default function WalletPage() {
 
                         <div className="bg-white p-4 rounded-2xl flex flex-col items-center justify-center mb-10 shadow-inner">
                           <QRCodeSVG 
-                            value={`https://oneid-suryagroup.web.app/verify?id=${selectedCredential.credentialId}`} 
+                            value={`https://oneid-suryagroup.web.app/verify?id=${selectedCredential.credentialNumber}`} 
                             size={160}
                             level="H"
                           />
@@ -190,7 +234,7 @@ export default function WalletPage() {
                       <div className={`absolute inset-0 rounded-3xl p-6 shadow-2xl bg-[#0a0f24] border border-white/10 [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col`}>
                         <div className="border-b border-white/10 pb-4 mb-4">
                           <h3 className="text-lg font-bold text-white mb-1">Credential Details</h3>
-                          <p className="font-mono text-blue-400 text-sm">{selectedCredential.credentialId}</p>
+                          <p className="font-mono text-blue-400 text-sm">{selectedCredential.credentialNumber}</p>
                         </div>
                         
                         <div className="flex-1 space-y-4 overflow-y-auto pr-2">
@@ -210,6 +254,14 @@ export default function WalletPage() {
                         </div>
 
                         <div className="mt-auto pt-4 border-t border-white/10">
+                          <div className="flex gap-2 mb-4">
+                            <button onClick={downloadPDF} disabled={isDownloading} className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-medium text-white flex items-center justify-center transition-colors">
+                              <FileText className="w-4 h-4 mr-1" /> PDF
+                            </button>
+                            <button onClick={downloadPNG} disabled={isDownloading} className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-medium text-white flex items-center justify-center transition-colors">
+                              <ImageIcon className="w-4 h-4 mr-1" /> PNG
+                            </button>
+                          </div>
                           <p className="text-[10px] text-slate-500 text-center leading-relaxed">
                             This credential is the property of Surya Group of Industries. It is intended for internal organizational use only and does not replace government-issued identification.
                           </p>

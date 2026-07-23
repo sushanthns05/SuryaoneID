@@ -1,209 +1,193 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { QrCode, Upload, ShieldCheck, CheckCircle2, Search, XCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-
-import { Suspense } from 'react';
+import { motion } from 'framer-motion';
+import { ShieldCheck, ShieldAlert, Shield, CheckCircle2, XCircle, Clock, Hash, Fingerprint, Calendar, User } from 'lucide-react';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
 
 function VerifyContent() {
-  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'success' | 'failed'>('idle');
-  const [credentialId, setCredentialId] = useState('');
-  const [credentialData, setCredentialData] = useState<any>(null);
-
   const searchParams = useSearchParams();
+  const id = searchParams.get('id');
+  const [credential, setCredential] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const idFromQuery = searchParams.get('id');
-    if (idFromQuery) {
-      setCredentialId(idFromQuery);
-      handleVerify(undefined, idFromQuery);
-    }
-  }, [searchParams]);
-
-  const handleVerify = async (e?: React.FormEvent, directId?: string) => {
-    if (e) e.preventDefault();
-    const idToVerify = directId || credentialId;
-    if (!idToVerify) return;
-    
-    setVerificationStatus('verifying');
-    setCredentialData(null);
-    
-    try {
-      // @ts-ignore
-      const docRef = doc(db, 'credentials', idToVerify.toUpperCase());
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists() && docSnap.data().status === 'Active') {
-        setCredentialData(docSnap.data());
-        setVerificationStatus('success');
-      } else {
-        setVerificationStatus('failed');
+    const verifyCredential = async () => {
+      if (!id) {
+        setError(true);
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setVerificationStatus('failed');
-    }
-  };
+
+      try {
+        const docRef = doc(db, 'credentials', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setCredential({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error("Verification error:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyCredential();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20">
+        <div className="flex flex-col items-center">
+          <div className="relative w-24 h-24 mb-8">
+            <div className="absolute inset-0 border-t-2 border-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-2 border-r-2 border-cyan-400 rounded-full animate-spin-reverse"></div>
+            <Shield className="absolute inset-0 m-auto w-8 h-8 text-blue-500 animate-pulse" />
+          </div>
+          <h2 className="text-xl font-medium text-white tracking-widest uppercase animate-pulse">Verifying Cryptographic Signature...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !credential) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 pt-20">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card max-w-md w-full p-8 border-red-500/30 relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-red-500/5 blur-3xl rounded-full"></div>
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+              <ShieldAlert className="w-10 h-10 text-red-500" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Verification Failed</h1>
+            <p className="text-slate-400 mb-6">
+              The credential ID <span className="font-mono text-red-400">{id || 'Unknown'}</span> could not be verified in the Surya OneID registry. It may be invalid, expired, or fraudulent.
+            </p>
+            <div className="w-full bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+              <div className="text-left text-sm text-red-200">
+                <p className="font-semibold mb-1">Cryptographic Signature Match Failed</p>
+                <p className="opacity-80">This credential does not exist in the official blockchain-backed ledger.</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[calc(100vh-80px)]">
-      <div className="text-center mb-12">
-        <div className="inline-flex items-center justify-center p-4 bg-blue-500/10 rounded-full mb-6">
-          <ShieldCheck className="w-12 h-12 text-blue-400" />
-        </div>
-        <h1 className="text-4xl font-bold mb-4 text-white">Credential Verification</h1>
-        <p className="text-slate-400 max-w-xl mx-auto text-lg">
-          Verify the authenticity of any Surya digital credential or organizational document instantly.
-        </p>
-      </div>
+    <div className="min-h-screen py-32 px-4 relative overflow-hidden">
+      {/* Background glowing effects */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-green-500/10 blur-[120px] rounded-full pointer-events-none"></div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-        
-        {/* Manual Verification Form */}
+      <div className="max-w-3xl mx-auto">
         <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-          className="glass-card p-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card border-green-500/30 p-1 relative overflow-hidden shadow-[0_0_50px_rgba(34,197,94,0.15)]"
         >
-          <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Search className="w-5 h-5 mr-2 text-blue-400" />
-            Manual Entry
-          </h2>
-          <form onSubmit={handleVerify} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Credential ID</label>
-              <input 
-                type="text" 
-                value={credentialId}
-                onChange={(e) => setCredentialId(e.target.value)}
-                placeholder="e.g. SOID-2026-000001" 
-                className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors uppercase font-mono"
-                required
-              />
-            </div>
-            <button 
-              type="submit"
-              disabled={verificationStatus === 'verifying'}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
-            >
-              {verificationStatus === 'verifying' ? 'Verifying...' : 'Verify Credential'}
-            </button>
-          </form>
-        </motion.div>
-
-        {/* Scan & Upload */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="glass-card p-8 flex flex-col justify-center"
-        >
-          <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <QrCode className="w-5 h-5 mr-2 text-purple-400" />
-            Scan QR Code
-          </h2>
+          {/* Animated gradient border */}
+          <div className="absolute inset-0 bg-gradient-to-r from-green-500/0 via-green-400/50 to-green-500/0 opacity-50 blur-md"></div>
           
-          <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-xl p-8 hover:border-blue-500/50 transition-colors cursor-pointer group bg-white/5">
-            <QrCode className="w-16 h-16 text-slate-500 group-hover:text-blue-400 transition-colors mb-4" />
-            <p className="text-center text-slate-400 font-medium group-hover:text-slate-300">Click to scan QR code</p>
-            <p className="text-center text-xs text-slate-500 mt-2">or</p>
-            <button className="mt-2 flex items-center text-sm text-blue-400 hover:text-blue-300">
-              <Upload className="w-4 h-4 mr-1" />
-              Upload Image
-            </button>
-          </div>
-        </motion.div>
-
-      </div>
-
-      {/* Verification Result */}
-      {verificationStatus === 'success' && credentialData && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="glass-card p-8 border-green-500/30 relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
-          
-          <div className="flex items-start space-x-6 relative z-10">
-            <div className="flex-shrink-0">
-              <CheckCircle2 className="w-16 h-16 text-green-400" />
-            </div>
-            <div className="flex-1 text-left">
-              <h3 className="text-2xl font-bold text-green-400 mb-2">Authentic Credential</h3>
-              <p className="text-slate-300 mb-6">This credential is cryptographically verified and was issued by Surya Group of Industries.</p>
+          <div className="bg-[#0a0f24]/90 backdrop-blur-xl rounded-2xl p-8 md:p-12 relative z-10">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-white/5 rounded-xl p-6 border border-white/10">
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Holder Name</p>
-                  <p className="font-medium text-slate-200">{credentialData.applicantName}</p>
+              {/* Status Icon */}
+              <div className="shrink-0 flex flex-col items-center">
+                <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-4 border border-green-500/30 relative">
+                  <div className="absolute inset-0 rounded-full animate-ping bg-green-400/20"></div>
+                  <ShieldCheck className="w-12 h-12 text-green-400 relative z-10" />
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Credential Type</p>
-                  <p className="font-medium text-slate-200">{credentialData.type}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Issue Date</p>
-                  <p className="font-medium text-slate-200">{credentialData.issuedAt?.toDate().toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Status</p>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
-                    {credentialData.status}
-                  </span>
-                </div>
+                <span className="bg-green-500/20 text-green-400 px-4 py-1.5 rounded-full text-sm font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                  {credential.status}
+                </span>
               </div>
 
-              {credentialData.data && Object.keys(credentialData.data).length > 0 && (
-                <div className="mt-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                  <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Additional Details</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {Object.entries(credentialData.data).map(([key, value]) => (
-                      <div key={key}>
-                        <p className="text-xs text-slate-500 uppercase">{key}</p>
-                        <p className="text-slate-200 text-sm font-medium">{String(value)}</p>
-                      </div>
-                    ))}
+              {/* Credential Details */}
+              <div className="flex-1 w-full">
+                <div className="text-center md:text-left mb-8 border-b border-white/10 pb-6">
+                  <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Verified Authentic</h1>
+                  <p className="text-slate-400">This credential has been verified against the official Surya OneID registry.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><User className="w-3 h-3" /> Holder Name</p>
+                      <p className="text-xl font-bold text-white">{credential.applicantName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Hash className="w-3 h-3" /> Credential Number</p>
+                      <p className="text-lg font-mono text-blue-400 bg-blue-500/10 px-3 py-1 rounded-md inline-block border border-blue-500/20">
+                        {credential.credentialNumber}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Fingerprint className="w-3 h-3" /> Credential Type</p>
+                      <p className="text-white font-medium">{credential.type}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Issue Date</p>
+                      <p className="text-white font-medium">{new Date(credential.issueDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Clock className="w-3 h-3" /> Valid Until</p>
+                      <p className="text-white font-medium">{new Date(credential.expiryDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
 
-      {verificationStatus === 'failed' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="glass-card p-8 border-red-500/30 relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
-          
-          <div className="flex items-start space-x-6 relative z-10">
-            <div className="flex-shrink-0">
-              <XCircle className="w-16 h-16 text-red-400" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-red-400 mb-2">Verification Failed</h3>
-              <p className="text-slate-300">The provided credential ID could not be verified in the Surya database. It may be invalid, expired, or revoked.</p>
+                {/* Digital Signature Panel */}
+                <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-white mb-1 text-sm">Digital Signature Verified</p>
+                      <p className="font-mono text-xs text-slate-500 break-all leading-relaxed">
+                        {credential.digitalSignature}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </motion.div>
-      )}
+      </div>
     </div>
   );
 }
 
-export default function Verify() {
+export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div>}>
-      <VerifyContent />
-    </Suspense>
+    <>
+      <Navbar />
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center pt-20">
+          <div className="w-8 h-8 border-t-2 border-blue-500 rounded-full animate-spin"></div>
+        </div>
+      }>
+        <VerifyContent />
+      </Suspense>
+      <Footer />
+    </>
   );
 }

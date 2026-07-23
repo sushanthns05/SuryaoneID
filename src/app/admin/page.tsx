@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, getDocs, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, orderBy, setDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, CheckCircle, XCircle, Clock, Eye, AlertCircle, X } from 'lucide-react';
 
@@ -55,9 +55,33 @@ export default function AdminDashboard() {
 
   const updateStatus = async (applicationId: string, status: string) => {
     try {
+      const app = applications.find(a => a.id === applicationId);
+      if (!app) return;
+
       const appRef = doc(db, 'applications', applicationId);
+      
+      // If approved, generate real credential
+      if (status === 'Approved') {
+        const credentialId = `SOID-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const credRef = doc(db, 'credentials', credentialId);
+        
+        await setDoc(credRef, {
+          userId: app.userId,
+          applicationId: app.id,
+          credentialNumber: credentialId,
+          type: app.credentialType || 'Surya OneID',
+          applicantName: app.applicantName,
+          email: app.email,
+          status: 'Active',
+          issueDate: new Date().toISOString(),
+          expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+          digitalSignature: `sig_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`,
+          photoUrl: (app as any).photoUrl || '',
+        });
+      }
+
       await updateDoc(appRef, { status, updatedAt: new Date() });
-      setApplications(apps => apps.map(app => app.id === applicationId ? { ...app, status } : app));
+      setApplications(apps => apps.map(a => a.id === applicationId ? { ...a, status } : a));
       if (viewingApp?.id === applicationId) {
         setViewingApp({ ...viewingApp, status });
       }
