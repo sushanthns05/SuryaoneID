@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Shield, User, Building, GraduationCap, Briefcase, Users, HeartHandshake, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, UploadCloud } from 'lucide-react';
 import { auth, db, storage } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, onAuthStateChanged } from 'firebase/auth';
@@ -96,7 +97,11 @@ export default function CreateOneID() {
       
       nextStep();
     } catch (err: any) {
-      setAuthError(err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        setAuthError('An account with this email already exists.');
+      } else {
+        setAuthError(err.message);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -248,8 +253,16 @@ export default function CreateOneID() {
                 </div>
                 
                 {authError && (
-                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center text-sm text-red-400">
-                    <AlertCircle className="w-4 h-4 mr-2" /> {authError}
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex flex-col justify-center text-sm text-red-400">
+                    <div className="flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> 
+                      <span>{authError}</span>
+                    </div>
+                    {authError.includes('already exists') && (
+                      <Link href="/sign-in" className="mt-2 text-blue-400 hover:text-blue-300 underline font-medium ml-6">
+                        Click here to Sign In instead
+                      </Link>
+                    )}
                   </div>
                 )}
 
