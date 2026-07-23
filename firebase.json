@@ -4,6 +4,9 @@
     "database": "oneidsurya",
     "rules": "firestore.rules"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
 
   "hosting": {
     "site": "oneid-surya",
