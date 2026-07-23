@@ -68,15 +68,25 @@ export async function POST(request: Request) {
         expiresAt: Timestamp.fromDate(new Date(new Date().setFullYear(new Date().getFullYear() + 1))),
         status: 'Active',
         verificationHash: verificationHash,
-        data: appData.credentialData || {},
+        data: appData.formData || {},
         email: appData.email || '',
-        photoUrl: appData.photoUrl || ''
+        photoUrl: appData.documents?.profilePhoto || '' // Map the profile photo base64
       };
       
       transaction.set(credentialRef, credentialData);
       
-      // Update application status
-      transaction.update(appRef, { status: 'Approved', updatedAt: FieldValue.serverTimestamp() });
+      // Update application status with timeline
+      const newTimeline = [...(appData.trackingTimeline || []), {
+        status: 'Credential Issued',
+        timestamp: new Date().toISOString(),
+        note: `Credential ${newCredentialId} has been successfully issued.`
+      }];
+
+      transaction.update(appRef, { 
+        status: 'Credential Issued', 
+        updatedAt: FieldValue.serverTimestamp(),
+        trackingTimeline: newTimeline
+      });
       
       // Update User profile if it's SOID
       if (type === 'SOID') {
