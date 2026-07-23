@@ -1,6 +1,7 @@
 {
 
   "firestore": {
+    "database": "oneidsurya",
     "rules": "firestore.rules"
   },
 

@@ -16,7 +16,7 @@ export const getAdminDb = () => {
       console.error('Firebase admin initialization error', error.stack);
     }
   }
-  return getFirestore();
+  return getFirestore(getApps()[0], "oneidsurya");
 };
 
 export const getAdminAuth = () => {

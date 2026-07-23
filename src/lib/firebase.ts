@@ -16,7 +16,7 @@ const firebaseConfig = {
 // Initialize Firebase only if config is provided and not already initialized
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getFirestore(app, "oneidsurya");
 const storage = getStorage(app);
 
 export { app, auth, db, storage };
