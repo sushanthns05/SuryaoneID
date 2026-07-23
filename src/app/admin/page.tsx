@@ -60,27 +60,24 @@ export default function AdminDashboard() {
 
       const appRef = doc(db, 'applications', applicationId);
       
-      // If approved, generate real credential
       if (status === 'Approved') {
-        const credentialId = `SOID-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const credRef = doc(db, 'credentials', credentialId);
-        
-        await setDoc(credRef, {
-          userId: app.userId,
-          applicationId: app.id,
-          credentialNumber: credentialId,
-          type: app.credentialType || 'Surya OneID',
-          applicantName: app.applicantName,
-          email: app.email,
-          status: 'Active',
-          issueDate: new Date().toISOString(),
-          expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-          digitalSignature: `sig_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`,
-          photoUrl: (app as any).photoUrl || '',
+        const response = await fetch('/api/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            applicationId,
+            adminUid: user?.uid
+          })
         });
-      }
 
-      await updateDoc(appRef, { status, updatedAt: new Date() });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to approve application via API');
+        }
+      } else {
+        // For Rejection, just update status directly
+        await updateDoc(appRef, { status, updatedAt: new Date() });
+      }
       setApplications(apps => apps.map(a => a.id === applicationId ? { ...a, status } : a));
       if (viewingApp?.id === applicationId) {
         setViewingApp({ ...viewingApp, status });
