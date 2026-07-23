@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import * as admin from 'firebase-admin';
 import { FieldValue, Timestamp, Transaction } from 'firebase-admin/firestore';
 import crypto from 'crypto';
@@ -15,15 +15,15 @@ export async function POST(request: Request) {
     // Verify admin
     // In a real app, you would verify the session cookie or authorization header using adminAuth.verifySessionCookie()
     // Here we'll just check if the user is an admin in the database
-    const adminDoc = await adminDb.collection('users').doc(adminUid).get();
+    const adminDoc = await getAdminDb().collection('users').doc(adminUid).get();
     if (!adminDoc.exists || adminDoc.data()?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const appRef = adminDb.collection('applications').doc(applicationId);
+    const appRef = getAdminDb().collection('applications').doc(applicationId);
     
     // We run the generation in a transaction
-    const generatedId = await adminDb.runTransaction(async (transaction: Transaction) => {
+    const generatedId = await getAdminDb().runTransaction(async (transaction: Transaction) => {
       const appDoc = await transaction.get(appRef);
       if (!appDoc.exists) {
         throw new Error('Application not found');
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       const userId = appData.userId;
       const type = appData.credentialType || 'SOID';
       
-      const counterRef = adminDb.collection('metadata').doc('counters');
+      const counterRef = getAdminDb().collection('metadata').doc('counters');
       const counterDoc = await transaction.get(counterRef);
       
       let currentCount = 0;
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       
       const verificationHash = crypto.createHash('sha256').update(`${newCredentialId}-${userId}-${Date.now()}`).digest('hex');
       
-      const credentialRef = adminDb.collection('credentials').doc(newCredentialId);
+      const credentialRef = getAdminDb().collection('credentials').doc(newCredentialId);
       
       const credentialData = {
         credentialId: newCredentialId,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       
       // Update User profile if it's SOID
       if (type === 'SOID') {
-        const userRef = adminDb.collection('users').doc(userId);
+        const userRef = getAdminDb().collection('users').doc(userId);
         transaction.set(userRef, {
           oneId: newCredentialId,
           updatedAt: FieldValue.serverTimestamp()
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     });
 
     // Add Audit Log (outside transaction to avoid limits if needed, but could be inside)
-    await adminDb.collection('auditLogs').add({
+    await getAdminDb().collection('auditLogs').add({
       action: 'CREDENTIAL_ISSUED',
       adminId: adminUid,
       applicationId: applicationId,
